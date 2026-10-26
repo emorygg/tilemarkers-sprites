@@ -1,5 +1,6 @@
 local Codec = require("src/preset_codec")
 local Styles = require("src/styles")
+local Sprites = require("src/sprites")
 
 local STORAGE_KEY = "tilePresets"
 local STORAGE_VERSION = 3
@@ -35,6 +36,7 @@ local function sanitizeTile(tile)
         z = math.floor(z),
         level = math.floor(level),
     }
+    result.sprite = Sprites.copy(tile.sprite)
     local style = Styles.normalize(tile)
     result.outlineColour = style.outlineColour
     result.fillColour = style.fillColour
@@ -335,6 +337,7 @@ function Presets:query(from, range, regionBindings, excludedPresetID)
                     sourceMetadata[string.format(
                         "%d:%d:%d", tile.level, tile.x, tile.z)] = {
                         text = tile.label,
+                        sprite = Sprites.copy(tile.sprite),
                         outlineColour = tile.outlineColour,
                         fillColour = tile.fillColour,
                         fill = tile.fill,
@@ -370,6 +373,7 @@ function Presets:query(from, range, regionBindings, excludedPresetID)
                             coord = coord,
                             metadata = {
                                 text = tile.label,
+                                sprite = Sprites.copy(tile.sprite),
                                 outlineColour = tile.outlineColour,
                                 fillColour = tile.fillColour,
                                 fill = tile.fill,

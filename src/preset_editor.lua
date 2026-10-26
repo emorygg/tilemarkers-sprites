@@ -1,4 +1,5 @@
 local Styles = require("src/styles")
+local Sprites = require("src/sprites")
 
 local Editor = {
     revision = 0,
@@ -24,6 +25,7 @@ local function copyTile(tile)
         x = math.floor(tonumber(tile.x) or 0),
         z = math.floor(tonumber(tile.z) or 0),
         level = math.floor(tonumber(tile.level) or 0),
+        sprite = Sprites.copy(tile.sprite),
         label = type(tile.label or tile.text) == "string"
             and (tile.label or tile.text)
             or nil,
@@ -38,6 +40,7 @@ end
 local function metadataFor(tile)
     return {
         text = tile.label,
+        sprite = Sprites.copy(tile.sprite),
         outlineColour = tile.outlineColour,
         fillColour = tile.fillColour,
         fill = tile.fill,
@@ -110,6 +113,7 @@ function Editor:add(coord, metadata)
         z = coord.z,
         level = coord.level,
         text = metadata and metadata.text,
+        sprite = metadata and metadata.sprite,
         outlineColour = metadata and metadata.outlineColour,
         fillColour = metadata and metadata.fillColour,
         fill = metadata and metadata.fill,
@@ -133,6 +137,30 @@ end
 function Editor:getLabel(coord)
     local tile = displayedTile(self, coord)
     return tile and tile.label or nil
+end
+
+function Editor:getSprite(coord)
+    local tile = displayedTile(self, coord)
+    return Sprites.copy(tile and tile.sprite)
+end
+
+function Editor:previewSprite(coord, icon)
+    local tile = self.tiles[coordKey(coord)]
+    if not tile then return false end
+    local preview = copyTile(tile)
+    preview.sprite, preview.customizing = Sprites.copy(icon), true
+    self.customizationPreview = {key = coordKey(coord), tile = preview}
+    self.revision = self.revision + 1
+    return true
+end
+
+function Editor:setSprite(coord, icon)
+    local tile = self.tiles[coordKey(coord)]
+    if not tile then return false, "That tile is no longer in this preset." end
+    tile.sprite = Sprites.copy(icon)
+    self:cancelCustomizationPreview(coord)
+    self.revision = self.revision + 1
+    return true
 end
 
 function Editor:getColour(coord)

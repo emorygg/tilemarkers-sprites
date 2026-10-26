@@ -1,4 +1,6 @@
 local Styles = require("src/styles")
+local Sprites = require("src/sprites")
+local SpritePicker = require("src/sprite_picker")
 local Draw = require("src/draw")
 
 local UI = {}
@@ -276,6 +278,7 @@ function UI:reset()
 end
 
 function UI:destroy()
+    if self.spritePicker then self.spritePicker:destroy() end
     if self.presetEditOverlay ~= nil then
         self.presetEditOverlay:Destroy()
     end
@@ -841,6 +844,7 @@ end
 
 
 function UI:isPromptOpen()
+    if self.spritePicker then return true end
     return self.clearPromptWindow ~= nil
         or self.colourPromptWindow ~= nil
         or self.presetCreateWindow ~= nil
@@ -848,6 +852,12 @@ function UI:isPromptOpen()
         or self.presetRenameWindow ~= nil
         or self.presetExportWindow ~= nil
         or self.presetDeleteWindow ~= nil
+end
+
+function UI:promptForSprite(store, coord)
+    if self:isPromptOpen() or not self.gameArea then return false end
+    self.spritePicker = SpritePicker.open(self, store, coord)
+    return self.spritePicker ~= nil
 end
 
 local function trim(value)
@@ -1545,11 +1555,13 @@ function UI:syncMarkers(tiles, hover, drawDistance)
             drawDistance = drawDistance,
         }
         local text = entry.metadata and entry.metadata.text
-        if text ~= nil and text ~= "" then
+        local icon = entry.metadata and Sprites.copy(entry.metadata.sprite)
+        if (text ~= nil and text ~= "") or icon ~= nil then
             labels[#labels + 1] = {
                 coord = entry.coord,
                 fine = entry.coord:ToCoordFine(true),
                 text = text,
+                sprite = icon,
                 config = labelTextConfig({
                     outlineColour = labelColour(style.outlineColour),
                     fontSize = self.labelSize,
@@ -1591,14 +1603,21 @@ function UI:drawLabels(playerPosition, playerLevel)
             and dx * dx + dz * dz <= distanceSquared then
             local centre = ScreenConvert.CoordFineToScreen(label.fine, 100)
             if centre ~= nil then
-                self.canvas:AddText(
+                if label.sprite then
+                    local iconCentre = ScreenConvert.CoordFineToScreen(label.fine, 30)
+                    if iconCentre and Sprites.draw(self.canvas, label.sprite, iconCentre, origin) then
+                        self.canvasHasLabels = true
+                    end
+                end
+                if label.text and label.text ~= "" then self.canvas:AddText(
                     round(centre.x - origin.x - 100),
-                    round(centre.y - origin.y - labelHeight / 2),
+                    round(centre.y - origin.y - labelHeight / 2 - (label.sprite and (label.sprite.size / 2 + 8) or 0)),
                     200,
                     labelHeight,
                     label.text,
                     label.config)
                 self.canvasHasLabels = true
+                end
             end
         end
     end

@@ -1,3 +1,5 @@
+local Sprites = require("src/sprites")
+Sprites.init(rsprite)
 local Tiles = require("src/tiles")
 local Draw = require("src/draw")
 local Minimenu = require("src/minimenu")
@@ -97,7 +99,8 @@ local function matchingDirectTiles(previousTiles, savedTiles)
             and saved.fillColour == direct.fillColour
             and saved.fill == direct.fill
             and saved.outlineCornersOnly == direct.outlineCornersOnly
-            and saved.outlineThickness == direct.outlineThickness then
+            and saved.outlineThickness == direct.outlineThickness
+            and Sprites.same(saved.sprite, direct.sprite) then
             matches[tileKey(direct)] = true
         end
     end

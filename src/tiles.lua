@@ -2,6 +2,7 @@ local MAP_SQUARE_SIZE = 64
 local STORAGE_KEY = "tiles"
 local STORAGE_VERSION = 2
 local Styles = require("src/styles")
+local Sprites = require("src/sprites")
 
 local storedData = PersistentDB:GetStructuredData(STORAGE_KEY)
 local storedVersion = type(storedData) == "table"
@@ -14,6 +15,7 @@ local loadedTiles = storedVersion == STORAGE_VERSION
 local function normalizeMetadata(metadata)
     local style = Styles.normalize(metadata)
     local normalized = {
+        sprite = Sprites.copy(type(metadata) == "table" and metadata.sprite),
         outlineColour = style.outlineColour,
         fillColour = style.fillColour,
         fill = style.fill,
@@ -60,6 +62,7 @@ local function storageMetadata(metadata)
     local normalized = normalizeMetadata(metadata)
     return {
         text = normalized.text,
+        sprite = Sprites.copy(normalized.sprite),
         outlineColour = Styles.encodeColour(normalized.outlineColour),
         fillColour = Styles.encodeColour(normalized.fillColour),
         fill = normalized.fill,
@@ -218,6 +221,36 @@ function Tiles:getLabel(coord)
     return metadata and metadata.text or nil
 end
 
+function Tiles:getSprite(coord)
+    local metadata = displayedMetadataAt(self, coord)
+    return Sprites.copy(metadata and metadata.sprite)
+end
+
+function Tiles:previewSprite(coord, icon)
+    local metadata = metadataAt(self.tiles, coord)
+    if not metadata then return false end
+    local preview = normalizeMetadata(metadata)
+    preview.sprite, preview.customizing = Sprites.copy(icon), true
+    self.customizationPreview = {key = coordKey(coord), metadata = preview}
+    self.revision = self.revision + 1
+    return true
+end
+
+function Tiles:setSprite(coord, icon)
+    local metadata = metadataAt(self.tiles, coord)
+    if not metadata then return false, "That tile is no longer marked." end
+    local square = self.tiles[coord.level][squareKey(coord)]
+    local replacement = normalizeMetadata(metadata)
+    replacement.sprite = Sprites.copy(icon)
+    square[coord:ToPacked()] = replacement
+    if not self:save() then
+        square[coord:ToPacked()] = metadata
+        return false, "Could not save the tile sprite. Please try again."
+    end
+    self:cancelCustomizationPreview(coord)
+    return true
+end
+
 function Tiles:getColour(coord)
     local metadata = displayedMetadataAt(self, coord)
     return metadata and metadata.outlineColour or nil
@@ -334,6 +367,7 @@ end
 
 local function exportTile(coord, metadata)
     local tile = {
+        sprite = Sprites.copy(metadata.sprite),
         x = coord.x,
         z = coord.z,
         level = coord.level,

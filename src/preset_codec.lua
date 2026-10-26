@@ -1,5 +1,6 @@
 local Codec = {}
 local Styles = require("src/styles")
+local Sprites = require("src/sprites")
 
 local TOKEN_PREFIX = "TM2"
 local BASE64_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_"
@@ -212,6 +213,8 @@ local function prepareTiles(tiles)
         local level = integer(tile.level) or 0
         local label = type(tile.label) == "string" and tile.label or ""
         local style = Styles.normalize(tile)
+        local sprite = Sprites.copy(tile.sprite)
+        if tile.sprite ~= nil and sprite == nil then return nil, "Invalid tile sprite." end
         if x == nil or z == nil or level < 0 or level > 3
             or #label > MAX_LABEL_BYTES then
             return nil, "Invalid tile data."
@@ -226,6 +229,7 @@ local function prepareTiles(tiles)
             outlineCornersOnly = style.outlineCornersOnly,
             outlineThickness = style.outlineThickness,
             label = label,
+            sprite = sprite,
         }
     end
     return ordered
@@ -473,7 +477,24 @@ function Codec.encode(name, tiles)
         end
     end
 
-    return TOKEN_PREFIX .. base64Encode(table.concat(parts))
+    local spriteCount = 0
+    for _, tile in ipairs(ordered) do if tile.sprite then spriteCount = spriteCount + 1 end end
+    if spriteCount > 0 then
+        writeVaruint(parts, spriteCount)
+        for index, tile in ipairs(ordered) do
+            local icon = tile.sprite
+            if icon then
+                writeVaruint(parts, index)
+                if type(icon.source) == "number" then
+                    parts[#parts + 1] = string.char(0);writeVaruint(parts, icon.source)
+                else
+                    parts[#parts + 1] = string.char(1);writeVaruint(parts, #icon.source);parts[#parts + 1] = icon.source
+                end
+                parts[#parts + 1] = string.char(icon.size, math.floor(icon.alpha * 255 + 0.5))
+            end
+        end
+    end
+    return (spriteCount > 0 and "TM3" or TOKEN_PREFIX) .. base64Encode(table.concat(parts))
 end
 
 local function readCoordinates(reader, level, count, tiles)
@@ -536,9 +557,10 @@ local function readMortonCoordinates(reader, level, count, tiles)
 end
 
 function Codec.decode(token)
-    if type(token) ~= "string" or token:sub(1, #TOKEN_PREFIX) ~= TOKEN_PREFIX then
-        return nil, "Expected a TM2 preset token."
+    if type(token) ~= "string" or (token:sub(1, 3) ~= TOKEN_PREFIX and token:sub(1, 3) ~= "TM3") then
+        return nil, "Expected a TM2 or sprite-enabled TM3 preset token."
     end
+    local hasSprites = token:sub(1, 3) == "TM3"
     local binary, decodeError = base64Decode(token:sub(#TOKEN_PREFIX + 1))
     if binary == nil then
         return nil, decodeError
@@ -685,6 +707,26 @@ function Codec.decode(token)
         end
     end
 
+    if hasSprites then
+        local count = readVaruint(reader)
+        if count == nil or count < 1 or count > #tiles then return nil, "Invalid sprite count." end
+        local seen = {}
+        for _ = 1, count do
+            local index, kind = readVaruint(reader), readByte(reader)
+            if index == nil or index < 1 or index > #tiles or seen[index] then return nil, "Invalid sprite tile index." end
+            seen[index] = true
+            local source
+            if kind == 0 then source = readVaruint(reader)
+            elseif kind == 1 then
+                local length = readVaruint(reader)
+                if length == nil or length < 1 or length > 128 then return nil, "Invalid sprite name length." end
+                source = readBytes(reader, length)
+            else return nil, "Invalid sprite source type." end
+            local size, alpha = readByte(reader), readByte(reader)
+            if Sprites.source(source) == nil or size == nil or size < 8 or size > 128 or alpha == nil then return nil, "Invalid sprite metadata." end
+            tiles[index].sprite = {source = Sprites.source(source), size = size, alpha = alpha / 255}
+        end
+    end
     if reader.position <= #reader.source then
         return nil, "Unexpected data at the end of preset token."
     end

@@ -667,11 +667,11 @@ equal(nil, labelledSource, "mark action does not open customization")
 
 local markedMenu = readyMenu()
 equal(
-    "Walk here|Unmark tile|Customize Tile|Cancel",
+    "Walk here|Unmark tile|Customize Tile|Set Tile Sprite|Cancel",
     displayedLabels(markedMenu),
     "marked tile actions render together below the native top entry")
-local colourEntry = markedMenu.entries[2]
-local unmarkEntry = markedMenu.entries[3]
+local colourEntry = findMenuEntry(markedMenu, "Customize Tile")
+local unmarkEntry = findMenuEntry(markedMenu, "Unmark tile")
 colourEntry.action(table.unpack(colourEntry.args, 1, colourEntry.args.n))
 equal("Existing label", promptedInitialLabel, "customization starts from tile label")
 equal(0x12345678, promptedInitialColour, "colour prompt starts from tile colour")
@@ -744,7 +744,7 @@ editAddEntry.action(table.unpack(editAddEntry.args, 1, editAddEntry.args.n))
 equal(source, editAddedSource, "edit add targets the canonical source tile")
 local editRemoveMenu = readyMenu()
 equal(
-    "Walk here|Remove from preset|Customize Tile|Cancel",
+    "Walk here|Remove from preset|Customize Tile|Set Tile Sprite|Cancel",
     displayedLabels(editRemoveMenu),
     "edit mode offers remove and customization for preset tiles")
 local editRemoveEntry = findMenuEntry(editRemoveMenu, "Remove from preset")

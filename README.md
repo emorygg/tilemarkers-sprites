@@ -1,4 +1,8 @@
-# Tile Markers
+# Tile Markers + Sprites
+
+Development fork: [emorygg/tilemarkers-sprites](https://github.com/emorygg/tilemarkers-sprites). Adds searchable RSprite icons to marked tiles, with preview, size/opacity, local saving and sprite-aware presets. See [installation, controls and limitations](FORK.md). RSprite and PrettyUI are separate dependencies; their code is not bundled here.
+
+## Original Tile Markers
 
 A RuneScape plugin for marking ground tiles.
 

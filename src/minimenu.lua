@@ -177,6 +177,10 @@ local function onReady(miniMenuReadyEvent)
             false)
         miniMenu:Add("Customize Tile", customizeTile, store, source)
         customCount = 2
+        miniMenu:Add("Set Tile Sprite", function()
+            UI:promptForSprite(store, source)
+        end)
+        customCount = 3
     else
         miniMenu:Add(
             editStore and "Add to preset" or "Mark tile",
